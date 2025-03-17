@@ -27,7 +27,7 @@ public class RpcClientProxy implements InvocationHandler {
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         // 创建一个 RpcRequest 对象，将请求信息封装到 RpcRequest 对象中
         RpcRequest rpcRequest = RpcRequest.builder()
-                .serviceName(method.getDeclaringClass().getName())
+                .interfaceName(method.getDeclaringClass().getName())
                 .methodName(method.getName())
                 .parameters(args)
                 .paramTypes(method.getParameterTypes())
@@ -37,7 +37,7 @@ public class RpcClientProxy implements InvocationHandler {
         return client.sendRequest(host, port, rpcRequest);
     }
 
-    public HelloService getProxy(Class<HelloService> helloServiceClass) {
-        return (HelloService) java.lang.reflect.Proxy.newProxyInstance(helloServiceClass.getClassLoader(), new Class<?>[]{helloServiceClass}, this);
+    public <T> T getProxy(Class<T> clazz) {
+        return (T) java.lang.reflect.Proxy.newProxyInstance(clazz.getClassLoader(), new Class<?>[]{clazz},this);
     }
 }

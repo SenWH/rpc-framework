@@ -6,6 +6,7 @@ public class TestClient {
         HelloService helloService = rpcClientProxy.getProxy(HelloService.class);
         HelloObject object = new HelloObject("Xiao Ming");
         String result = helloService.sayHello(object);
+
         System.out.println(result);
     }
 }
