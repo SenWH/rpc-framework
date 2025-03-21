@@ -1,13 +1,14 @@
-package org.example;
+package org.example.RPC.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.org.slf4j.internal.Logger;
 import com.sun.org.slf4j.internal.LoggerFactory;
+import org.example.CustomUtil.ServiceRegistry;
+import org.example.Task.Duel;
+import org.example.RPC.Rpcs;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -17,8 +18,8 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.*;
 
-public class RpcServer {
-    private static final Logger logger = LoggerFactory.getLogger(RpcServer.class);
+public class NioRpcServer implements Rpcs {
+    private static final Logger logger = LoggerFactory.getLogger(NioRpcServer.class);
     private final int CORE_POOL_SIZE = 10;
     private final int MAXIMUM_POOL_SIZE = 100;
     private final long KEEP_ALIVE_TIME = 10000;
@@ -29,7 +30,7 @@ public class RpcServer {
     private ServerSocketChannel serverSocketChannel;
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    public RpcServer(ServiceRegistry serviceRegistry) {
+    public NioRpcServer(ServiceRegistry serviceRegistry) {
         this.serviceRegistry = serviceRegistry;
         BlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(100);
         ThreadFactory threadFactory = Executors.defaultThreadFactory();
@@ -75,7 +76,7 @@ public class RpcServer {
         }
     }
 
-    private void handleAccept(SelectionKey key) throws IOException {
+    public void handleAccept(SelectionKey key) throws IOException {
         ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
         // 接受新的连接
         SocketChannel socketChannel = serverChannel.accept();
@@ -84,7 +85,8 @@ public class RpcServer {
         socketChannel.register(selector, SelectionKey.OP_READ);
     }
 
-    private void handleRead(SelectionKey key) {
+    @Override
+    public void handleRead(SelectionKey key) {
         threadPool.submit(() -> {
             if (!key.isValid()) {
                 logger.warn("无效的 SelectionKey，跳过处理");
@@ -117,7 +119,7 @@ public class RpcServer {
         });
     }
 
-    private void handleRequest(SocketChannel socketChannel, byte[] data) {
+    public void handleRequest(SocketChannel socketChannel, byte[] data) {
         // 处理 RPC 请求的逻辑
         Duel task = new Duel(socketChannel, serviceRegistry, data);
         threadPool.submit(task);
@@ -134,6 +136,11 @@ public class RpcServer {
         } catch (IOException e) {
             logger.error("关闭资源时出错", e);
         }
+    }
+
+    @Override
+    public ExecutorService getThreadPool() {
+        return null;
     }
 //    public void start(int port) {
 //        try {

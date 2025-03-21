@@ -1,4 +1,4 @@
-package org.example;
+package org.example.CustomUtil;
 
 public interface ServiceRegistry {
     void register(Class<?> serviceImplClass);

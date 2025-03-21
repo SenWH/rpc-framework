@@ -1,7 +1,14 @@
-package org.example;
+package org.example.Proxy;
+
+import org.example.Common.SerializerCode;
+import org.example.POJO.RpcRequest;
+import org.example.RPC.RpcCli;
+import org.example.RPC.impl.NettyRpcClient;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * 客户端无法直接调用服务端的方法，需要通过代理对象来调用
@@ -32,9 +39,13 @@ public class RpcClientProxy implements InvocationHandler {
                 .parameters(args)
                 .paramTypes(method.getParameterTypes())
                 .build();
-        RpcClient client = new RpcClient();
+        RpcCli client = new NettyRpcClient(SerializerCode.JSON); // 序列化方式
         // 发送请求给服务端
+
+        // 阻塞等待结果
+        System.out.println(client.sendRequest(host, port, rpcRequest));
         return client.sendRequest(host, port, rpcRequest);
+
     }
 
     public <T> T getProxy(Class<T> clazz) {

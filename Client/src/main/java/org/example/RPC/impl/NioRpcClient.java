@@ -1,19 +1,18 @@
-package org.example;
+package org.example.RPC.impl;
 
 import com.sun.org.slf4j.internal.Logger;
 import com.sun.org.slf4j.internal.LoggerFactory;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.POJO.RpcRequest;
+import org.example.RPC.RpcCli;
 
-public class RpcClient {
-    private static final Logger logger = LoggerFactory.getLogger(RpcClient.class);
+public class NioRpcClient  implements RpcCli {
+    private static final Logger logger = LoggerFactory.getLogger(NioRpcClient.class);
     public Object sendRequest(String host, int port, RpcRequest rpcRequest) {
         try {
             SocketChannel socketChannel = SocketChannel.open();
