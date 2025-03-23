@@ -159,15 +159,15 @@ tags:
 > ```java
 > bootstrap = new Bootstrap();
 > bootstrap.group(group) //group 线程池从中取EventLoop （线程）执行具体任务
->      .channel(NioSocketChannel.class) //Channel被注册 Selector 监听事件 
->      .handler(new ChannelInitializer<SocketChannel>() {
->          @Overrid //当有就绪事件调用channel read方法读取数据进入责任链
->          protected void initChannel(SocketChannel ch) throws Exception {
->              ch.pipeline().addLast(new CustomObjectDecoder());
->              ch.pipeline().addLast(new CustomObjectEncoder(serializer));
->              ch.pipeline().addLast(new NettyRpcClientHandler()); //channelRead0 触发
->          }
->      });
+>   .channel(NioSocketChannel.class) //Channel被注册 Selector 监听事件 
+>   .handler(new ChannelInitializer<SocketChannel>() {
+>       @Overrid //当有就绪事件调用channel read方法读取数据进入责任链
+>       protected void initChannel(SocketChannel ch) throws Exception {
+>           ch.pipeline().addLast(new CustomObjectDecoder());
+>           ch.pipeline().addLast(new CustomObjectEncoder(serializer));
+>           ch.pipeline().addLast(new NettyRpcClientHandler()); //channelRead0 触发
+>       }
+>   });
 > 
 > ctx.fireChannelRead(processedMsg); //传递给下一个入站方向的处理器
 > ```
@@ -182,9 +182,9 @@ tags:
 >
 > ```java
 > protected void channelRead0(ChannelHandlerContext ctx, RpcResponse response) throws Exception {
->  System.out.println("收到消息:" + response);
->  AttributeKey<RpcResponse> key = AttributeKey.valueOf("rpcResponse");
->  ctx.channel().attr(key).set(response); //设置响应对象名
+> System.out.println("收到消息:" + response);
+> AttributeKey<RpcResponse> key = AttributeKey.valueOf("rpcResponse");
+> ctx.channel().attr(key).set(response); //设置响应对象名
 > }
 > ```
 
@@ -199,10 +199,47 @@ tags:
 
 > ```java
 > for(int i = 0; i < rpcRequest.getParamTypes().length; i ++) {
->     Class<?> clazz = rpcRequest.getParamTypes()[i];
->     if(!clazz.isAssignableFrom(rpcRequest.getParameters()[i].getClass())) {
->         byte[] bytes = objectMapper.writeValueAsBytes(rpcRequest.getParameters()[i]);
->         rpcRequest.getParameters()[i] = objectMapper.readValue(bytes, clazz);
->     }
+>  Class<?> clazz = rpcRequest.getParamTypes()[i];
+>  if(!clazz.isAssignableFrom(rpcRequest.getParameters()[i].getClass())) {
+>      byte[] bytes = objectMapper.writeValueAsBytes(rpcRequest.getParameters()[i]);
+>      rpcRequest.getParameters()[i] = objectMapper.readValue(bytes, clazz);
+>  }
 > }
+> ```
+
+# 客户端-服务中心-服务端 v2.0
+
+## 优化
+
+- 将服务中心移动到Nacos，客户端从Nacos请求服务地址，为后续实现负载均衡打基础
+
+> 接口的全限定名作为key分别注册到nacos和本地注册表
+>
+> ```java
+> serviceProvider.register(serviceClass); //本地注册
+> Class<?>[] interfaces = serviceClass.getInterfaces();
+> for (Class<?> intf : interfaces) {
+>     // 注册服务到注册中心
+>     serviceRegistry.register(intf.getCanonicalName(), new InetSocketAddress(host, port));
+> }
+> 
+> 注册中心
+> namingService.registerInstance(serviceName, inetSocketAddress.getHostName(), inetSocketAddress.getPort());
+> 
+> 客户端请求
+> List<Instance> instances = namingService.getAllInstances(serviceName);
+> ```
+
+- 负载均衡（在客户端处理）
+
+> ```java
+> List<Instance> instances = namingService.getAllInstances(serviceName);
+> // 选择负载均衡策略，这里可以根据需要修改
+> Instance selectedInstance = randomLoadBalance(instances); //随机/轮询
+> //假设注册中心有多个实例，在多线程情况下请求 轮询时原子类当计数器
+>     private final AtomicInteger roundRobinIndex = new AtomicInteger(0);
+>     private Instance roundRobinLoadBalance(List<Instance> instances) {
+>         int index = roundRobinIndex.getAndIncrement() % instances.size();
+>         return instances.get(index);
+>     }
 > ```
