@@ -33,29 +33,30 @@ public class NettyRpcClient implements RpcCli {
                         ch.pipeline().addLast(new CustomObjectDecoder());
                         ch.pipeline().addLast(new CustomObjectEncoder(serializer));
                         ch.pipeline().addLast(new NettyRpcClientHandler()); //channelRead0 触发
-                    }
+                    } //
                 });
     }
     @Override
     public Object sendRequest(String host, int port, RpcRequest rpcRequest) {
-        CompletableFuture<Object> future = new CompletableFuture<>();
         try {
             ChannelFuture channelFuture = bootstrap.connect(host, port).sync();//阻塞线程
             Channel channel = channelFuture.channel(); //获取已连接channel对象
             channel.writeAndFlush(rpcRequest); //编码器序列化为字节数组放入ByteBuf中通过网络发送
-            channel.closeFuture().sync();
+
+            channel.closeFuture().sync();  //阻塞线程直到channel关闭
             AttributeKey<RpcResponse> key = AttributeKey.valueOf("rpcResponse");
             RpcResponse rpcResponse = channel.attr(key).get();
             return rpcResponse.getData();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
-        }}
+        }
+    }
 
         private static class NettyRpcClientHandler extends SimpleChannelInboundHandler<RpcResponse> {
             @Override
             protected void channelRead0(ChannelHandlerContext ctx, RpcResponse response) throws Exception {
                 System.out.println("收到消息:" + response);
-                AttributeKey<RpcResponse> key = AttributeKey.valueOf("rpcResponse");
+                AttributeKey<RpcResponse> key = AttributeKey.valueOf("rpcResponse"); //创建键名用于放属性
                 ctx.channel().attr(key).set(response);
                 ctx.channel().close();
             }

@@ -1,5 +1,7 @@
 package org.example.RPC.impl;
 
+import com.sun.org.slf4j.internal.Logger;
+import com.sun.org.slf4j.internal.LoggerFactory;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -10,26 +12,42 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.EventExecutorGroup;
 import org.example.CustomUtil.CommonSerializer;
+import org.example.CustomUtil.ServiceProvider;
 import org.example.CustomUtil.ServiceRegistry;
 import org.example.CustomUtil.impl.CustomObjectDecoder;
 import org.example.CustomUtil.impl.CustomObjectEncoder;
+import org.example.CustomUtil.impl.NacosServiceRegistry;
+import org.example.CustomUtil.impl.ServiceProviderImpl;
+import org.example.Exception.RpcError;
+import org.example.Exception.RpcException;
 import org.example.POJO.RpcRequest;
 import org.example.POJO.RpcResponse;
 import org.example.RPC.Rpcs;
+import org.example.Service.impl.HelloServiceImpl;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
 
 public class NettyRpcServer implements Rpcs {
+    private static final Logger logger = LoggerFactory.getLogger(NettyRpcServer.class);
+    private final String host;
+    private final int port;
     private final ServiceRegistry serviceRegistry;
+    private final ServiceProvider serviceProvider;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private CommonSerializer serializer;
-    public NettyRpcServer(ServiceRegistry serviceRegistry, int serializer_code) {
-        this.serviceRegistry = serviceRegistry;
+
+    public NettyRpcServer(int serializer_code, String host, int port) {
+        this.serviceRegistry = new NacosServiceRegistry();
+        this.serviceProvider = new ServiceProviderImpl();
         this.serializer = CommonSerializer.getByCode(serializer_code);
+        this.host = host;
+        this.port = port;
     }
-    public void start(int port) throws IOException {
+
+    public void start() throws IOException {
         // 创建 bossGroup 客户端连接和 workerGroup 读写
         bossGroup = new NioEventLoopGroup();
         workerGroup = new NioEventLoopGroup();
@@ -70,16 +88,35 @@ public class NettyRpcServer implements Rpcs {
         }
     }
 
+    @Override
+    public <T> void publishService(Class<T> serviceClass) {
+        if (serializer == null) {
+            logger.error("未设置序列化器");
+            throw new RpcException(RpcError.SERIALIZER_NOT_FOUND);
+        }
+        try {
+            serviceProvider.register(serviceClass); //本地注册
+            Class<?>[] interfaces = serviceClass.getInterfaces();
+            for (Class<?> intf : interfaces) {
+                // 注册服务到注册中心
+                serviceRegistry.register(intf.getCanonicalName(), new InetSocketAddress(host, port));
+            }
+            } catch (Exception e) {
+            // 处理注册过程中可能出现的异常
+            logger.error("服务注册失败: {}", e.getMessage(), e);
+            throw new RpcException(RpcError.SERVICE_REGISTRATION_FAILED);
+        }
+    }
+
     private class NettyRpcServerHandler extends SimpleChannelInboundHandler<RpcRequest> {
         protected void channelRead0(ChannelHandlerContext ctx, RpcRequest rpcRequest) throws Exception {
             try {
                 System.out.println("服务器接收到请求: "+rpcRequest);
                 String interfaceName = rpcRequest.getInterfaceName();
-                System.out.println("服务器接收到请求接口名: "+interfaceName);
                 // 查找服务
                 Class<?> serviceImplClass = null;
                 if (rpcRequest != null) {
-                    serviceImplClass = serviceRegistry.getServiceImplClass(rpcRequest.getInterfaceName());
+                    serviceImplClass = serviceProvider.getServiceImplClass(rpcRequest.getInterfaceName());
                 }
                 // 执行方法调用
                 if (serviceImplClass == null) {
