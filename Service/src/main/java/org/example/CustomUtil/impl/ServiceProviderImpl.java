@@ -1,12 +1,11 @@
 package org.example.CustomUtil.impl;
 
-import org.example.CustomUtil.ServiceRegistry;
+import org.example.CustomUtil.ServiceProvider;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class ServiceRegistryImpl implements ServiceRegistry {
-
+public class ServiceProviderImpl implements ServiceProvider {
     // 用于存储服务名称和对应的服务实现类的映射
     private final Map<String, Class<?>> serviceMap = new HashMap<>();
 
@@ -15,7 +14,7 @@ public class ServiceRegistryImpl implements ServiceRegistry {
      * @param serviceImplClass 服务实现类的 Class 对象
      */
     @Override
-    public void register(Class<?> serviceImplClass) {
+    public void register(Class<?> serviceImplClass) { //1->1 N->1
         // 获取服务实现类实现的所有接口
         Class<?>[] interfaces = serviceImplClass.getInterfaces();
         for (Class<?> intf : interfaces) {

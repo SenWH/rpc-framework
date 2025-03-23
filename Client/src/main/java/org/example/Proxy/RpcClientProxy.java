@@ -7,6 +7,7 @@ import org.example.RPC.impl.NettyRpcClient;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -19,9 +20,9 @@ import java.util.concurrent.ExecutionException;
 public class RpcClientProxy implements InvocationHandler {
     private String host;
     private int port;
-    public RpcClientProxy(String host, int port) {
-        this.host = host;
-        this.port = port;
+    public RpcClientProxy(InetSocketAddress inetSocketAddress) {
+        this.host = inetSocketAddress.getHostName();
+        this.port = inetSocketAddress.getPort();
     }
 
     /**
@@ -39,11 +40,10 @@ public class RpcClientProxy implements InvocationHandler {
                 .parameters(args)
                 .paramTypes(method.getParameterTypes())
                 .build();
-        RpcCli client = new NettyRpcClient(SerializerCode.JSON); // 序列化方式
+        RpcCli client = new NettyRpcClient(SerializerCode.KRYO); // 序列化方式
         // 发送请求给服务端
 
         // 阻塞等待结果
-        System.out.println(client.sendRequest(host, port, rpcRequest));
         return client.sendRequest(host, port, rpcRequest);
 
     }

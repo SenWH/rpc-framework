@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.org.slf4j.internal.Logger;
 import com.sun.org.slf4j.internal.LoggerFactory;
 import org.example.CustomUtil.ServiceRegistry;
-import org.example.Task.Duel;
 import org.example.RPC.Rpcs;
 
 import java.io.IOException;
@@ -38,14 +37,14 @@ public class NioRpcServer implements Rpcs {
         threadPool = new ThreadPoolExecutor(CORE_POOL_SIZE, MAXIMUM_POOL_SIZE, KEEP_ALIVE_TIME, TimeUnit.MILLISECONDS, workQueue, threadFactory, handler);
     }
 
-    public void start(int port) {
+    public void start() {  // TODO 少了port参数
         try {
             // 打开选择器
             selector = Selector.open();
             // 打开服务器套接字通道
             serverSocketChannel = ServerSocketChannel.open();
             // 绑定端口
-            serverSocketChannel.socket().bind(new InetSocketAddress(port));
+            serverSocketChannel.socket().bind(new InetSocketAddress(9000));
             // 设置为非阻塞模式
             serverSocketChannel.configureBlocking(false);
             // 注册 OP_ACCEPT 事件到选择器
@@ -121,8 +120,9 @@ public class NioRpcServer implements Rpcs {
 
     public void handleRequest(SocketChannel socketChannel, byte[] data) {
         // 处理 RPC 请求的逻辑
-        Duel task = new Duel(socketChannel, serviceRegistry, data);
-        threadPool.submit(task);
+//        Duel task = new Duel(socketChannel, serviceRegistry, data);
+//        threadPool.submit(task);
+        return;
     }
 
     public void stop() {
@@ -141,6 +141,11 @@ public class NioRpcServer implements Rpcs {
     @Override
     public ExecutorService getThreadPool() {
         return null;
+    }
+
+    @Override
+    public <T> void publishService(Class<T> serviceClass) {
+
     }
 //    public void start(int port) {
 //        try {
